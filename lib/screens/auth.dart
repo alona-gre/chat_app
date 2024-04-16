@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:chat_app/widgets/user_image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +24,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLogin = true;
   File? _selectedImage;
   var _isAuthenticating = false;
+  var _enteredUsername = '';
 
   void _submit() async {
     final isValid = _formKey.currentState!.validate();
@@ -59,12 +61,18 @@ class _AuthScreenState extends State<AuthScreen> {
         // send a request to put a file to storage
         await storageRef.putFile(_selectedImage!);
         final imageURL = await storageRef.getDownloadURL();
-        print(imageURL);
+
+        // send a user's meta data to FirebaseFirestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredentials.user!.uid)
+            .set({
+          'username': _enteredUsername,
+          'email': _enteredEmail,
+          'image_url': imageURL,
+        });
       }
     } on FirebaseAuthException catch (error) {
-      setState(() {
-        _isAuthenticating = false;
-      });
       if (error.code == 'email-already-in-use') {
         // ..
       }
@@ -78,6 +86,9 @@ class _AuthScreenState extends State<AuthScreen> {
           content: Text(error.message ?? 'Authentication failed'),
         ),
       );
+      setState(() {
+        _isAuthenticating = false;
+      });
     }
   }
 
@@ -85,7 +96,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sign Up / Register'),
+        title: const Text('Sign up / Log in'),
       ),
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: Center(
@@ -119,6 +130,27 @@ class _AuthScreenState extends State<AuthScreen> {
                                   // that's how we get hold of the picked image
                                   (value) => _selectedImage = value,
                             ),
+                          if (!_isLogin)
+                            TextFormField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Username',
+                                ),
+                                autocorrect: false,
+                                enableSuggestions: false,
+                                validator: (value) {
+                                  if (value == null ||
+                                      value.trim().isEmpty ||
+                                      value.length < 4) {
+                                    return 'Username must contain at least 6 characters';
+                                  }
+                                  return null;
+                                },
+                                onSaved: (value) {
+                                  _enteredUsername = value!;
+                                }),
+                          const SizedBox(
+                            height: 12,
+                          ),
                           TextFormField(
                               decoration: const InputDecoration(
                                 labelText: 'Email Address',
@@ -157,7 +189,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           const SizedBox(
                             height: 12,
                           ),
-                          if (!_isAuthenticating)
+                          if (_isAuthenticating)
                             const CircularProgressIndicator(),
                           if (!_isAuthenticating)
                             ElevatedButton(
