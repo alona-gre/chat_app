@@ -15,7 +15,7 @@ class ChatMessages extends StatelessWidget {
             .collection('chat')
             .orderBy(
               'createdAt',
-              descending: true,
+              descending: false,
             )
             .snapshots(),
         builder: (ctx, chatSnapshots) {
@@ -40,25 +40,24 @@ class ChatMessages extends StatelessWidget {
 
           return ListView.builder(
               padding: const EdgeInsets.only(bottom: 40, left: 13, right: 13),
-              reverse: true,
+              // reverse: false,
               itemCount: loadedMessages.length,
               itemBuilder: (cntx, index) {
                 final chatMessage = loadedMessages[index].data();
                 // check if there is a next message. Otherwise null.
-                final nextChatMessage = index + 1 < loadedMessages.length
-                    ? loadedMessages[index + 1].data()
-                    : null;
+                final prevChatMessage =
+                    index - 1 >= 0 ? loadedMessages[index - 1].data() : null;
 
                 // compare userId of the current and next messages
                 final currentMessageUserId = chatMessage['userId'];
-                final nextMessageUserId =
-                    nextChatMessage != null ? nextChatMessage['userId'] : null;
+                final prevMessageUserId =
+                    prevChatMessage != null ? prevChatMessage['userId'] : null;
 
-                final nextUserIsSame =
-                    currentMessageUserId == nextMessageUserId;
+                final prevUserIsSame =
+                    currentMessageUserId == prevMessageUserId;
 
                 // display a widget depending on whether it is a first message of this user
-                if (nextUserIsSame) {
+                if (prevUserIsSame) {
                   return MessageBubble.next(
                     message: chatMessage['text'],
                     isMe: authenticatedUser!.uid == currentMessageUserId,
